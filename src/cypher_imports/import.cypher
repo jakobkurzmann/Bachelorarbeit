@@ -64,41 +64,36 @@ RETURN batches, total;
 //Laden der Beziehung zwischen Trip und Station
 //HAS_START und HAS_END
 CALL apoc.periodic.iterate(
-  "LOAD CSV WITH HEADERS FROM 'file:///201701-citibike-tripdata.csv' AS row FIELDTERMINATOR ','
-   WITH row,
+  'LOAD CSV WITH HEADERS FROM "file:///201701-citibike-tripdata.csv" AS row FIELDTERMINATOR ","
+   RETURN
      toInteger(row.`Start Station ID`) AS startId,
      toInteger(row.`End Station ID`) AS endId,
-     toInteger(row.`Bike ID`) AS bikeId,
-     apoc.date.parse(row.`Start Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS startTime,
-     apoc.date.parse(row.`Stop Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS stopTime
-   RETURN startId, endId, startTime, stopTime, bikeId",
-  "MATCH (t:Trip {
-     duration: duration,
+     apoc.date.parse(row.`Start Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS startTime,
+     apoc.date.parse(row.`Stop Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS stopTime',
+  'MATCH (t:Trip {
      validFrom: datetime({epochMillis: startTime}),
      validTo: datetime({epochMillis: stopTime})
    })
-   MATCH (b:Bike {bikeId: bikeId})
    MATCH (s:Station {stationId: startId})
    MATCH (e:Station {stationId: endId})
-   MATCH (e)<-[:HAS_END]-(t)-[:HAS_START]->(s)
-   WHERE startTime IS NOT NULL AND stopTime IS NOT NULL
-   CREATE (b)-[:USED_IN]->(t)
-   ",
-  {batchSize: 1000, parallel: false}
-)
+   MERGE (t)-[:HAS_START]->(s)
+   MERGE (t)-[:HAS_END]->(e)',
+  {batchSize: 1000, parallel: true}
+) YIELD batches, total
+RETURN batches, total;
 
 //Laden der USED_IN Beziehung
 CALL apoc.periodic.iterate(
-  "LOAD CSV WITH HEADERS FROM 'file:///201701-citibike-tripdata.csv' AS row FIELDTERMINATOR ','
+  'LOAD CSV WITH HEADERS FROM "file:///201701-citibike-tripdata.csv" AS row FIELDTERMINATOR ","
    WITH row,
      toInteger(row.`Start Station ID`) AS startId,
      toInteger(row.`End Station ID`) AS endId,
      toInteger(row.`Bike ID`) AS bikeId,
      toInteger(row.`Trip Duration`) AS duration,
-     apoc.date.parse(row.`Start Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS startTime,
-     apoc.date.parse(row.`Stop Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS stopTime
-   RETURN startId, endId, duration, startTime, stopTime, bikeId",
-  "MATCH (t:Trip {
+     apoc.date.parse(row.`Start Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS startTime,
+     apoc.date.parse(row.`Stop Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS stopTime
+   RETURN startId, endId, duration, startTime, stopTime, bikeId',
+  'MATCH (t:Trip {
      duration: duration,
      validFrom: datetime({epochMillis: startTime}),
      validTo: datetime({epochMillis: stopTime})
@@ -110,25 +105,24 @@ CALL apoc.periodic.iterate(
    MERGE (t)-[:HAS_START]->(s)
    MERGE (t)-[:HAS_END]->(e)
    MERGE (b)-[:USED_IN]->(t)
-   ",
-
-  {batchSize: 1000, parallel: false}
+   ',
+  {batchSize: 1000, parallel: true}
 )
 
 
 //Laden der User Nodes Langsam!!!
 CALL apoc.periodic.iterate(
-  "LOAD CSV WITH HEADERS FROM 'file:///201701-citibike-tripdata.csv' AS row FIELDTERMINATOR ','
+  'LOAD CSV WITH HEADERS FROM "file:///201701-citibike-tripdata.csv" AS row FIELDTERMINATOR ","
    WITH row,
      toInteger(row.`Start Station ID`) AS startId,
      toInteger(row.`End Station ID`) AS endId,
-     apoc.date.parse(row.`Start Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS startTime,
-     apoc.date.parse(row.`Stop Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS stopTime,
+     apoc.date.parse(row.`Start Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS startTime,
+     apoc.date.parse(row.`Stop Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS stopTime,
      row.`User Type` AS userType,
      row.`Birth Year` AS birthYear,
      toInteger(row.`Gender`) AS gender
-   RETURN startId, endId, startTime, stopTime, userType, birthYear, gender",
-  "MATCH (t:Trip {
+   RETURN startId, endId, startTime, stopTime, userType, birthYear, gender',
+  'MATCH (t:Trip {
      validFrom: datetime({epochMillis: startTime}),
      validTo: datetime({epochMillis: stopTime})
    })
@@ -141,7 +135,7 @@ CALL apoc.periodic.iterate(
      birthYear: birthYear,
      gender: gender})
    MERGE (u)-[:PARTICIPATED_IN]->(t)
-   ",
+   ',
   {batchSize: 1000, parallel: true}
 )
 
