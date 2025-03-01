@@ -7,11 +7,20 @@ CREATE INDEX trip_index IF NOT EXISTS FOR (t:Trip) ON (t.duration,t.validFrom,t.
 // Laden der Station Nodes
 LOAD CSV WITH HEADERS FROM'file:///201701-citibike-tripdata.csv_1.csv' AS row FIELDTERMINATOR ','
 WITH row
-MERGE(s1:Station{stationId:toInteger(row.`Start Station ID`),name:row.`Start Station Name`,lat:toFloat(row.`Start Station Latitude`),long:toFloat(row.`Start Station Longitude`)})
+MERGE(s1:Station{stationId:toInteger(row.`Start Station ID`)})
+ON CREATE
+ SET s1.name = row.`Start Station Name`,
+     s1.lat = toFloat(row.`Start Station Latitude`),
+     s1.long = toFloat(row.`Start Station Longitude`)
 RETURN row;
+
 LOAD CSV WITH HEADERS FROM'file:///201701-citibike-tripdata.csv_1.csv' AS row FIELDTERMINATOR ','
 WITH row
-MERGE(s1:Station{stationId:toInteger(row.`End Station ID`),name:row.`End Station Name`,lat:toFloat(row.`End Station Latitude`),long:toFloat(row.`End Station Longitude`)})
+MERGE(s1:Station{stationId:toInteger(row.`End Station ID`)})
+ON CREATE SET
+  s1.name = row.`End Station Name`,
+  s1.lat = toFloat(row.`End Station Latitude`),
+  s1.long = toFloat(row.`End Station Longitude`)
 RETURN row;
 //Laden der Trip Nodes
 CALL apoc.periodic.iterate(
@@ -20,7 +29,7 @@ CALL apoc.periodic.iterate(
   toInteger(row.`Trip Duration`) AS duration,
   apoc.date.parse(row.`Start Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS startTime,
   apoc.date.parse(row.`Stop Time`, "ms", "yyyy-MM-dd HH:mm:ss") AS stopTime
-  MERGE (t:Trip {
+  CREATE (t:Trip {
     duration: duration,
     validFrom: datetime({epochMillis: startTime}),
     validTo: datetime({epochMillis: stopTime})
@@ -38,15 +47,19 @@ CALL apoc.periodic.iterate(
      toInteger(row.`Trip Duration`) AS duration,
      apoc.date.parse(row.`Start Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS startTime,
      apoc.date.parse(row.`Stop Time`, 'ms', 'yyyy-MM-dd HH:mm:ss') AS stopTime
-   RETURN startId, endId, duration, startTime, stopTime",
-  "MATCH (t:Trip {
+   WITH startId, endId, duration, startTime, stopTime
+   WHERE startTime IS NOT NULL AND stopTime IS NOT NULL
+   MATCH (s:Station {stationId: startId})
+   MATCH (e:Station {stationId: endId})
+   MATCH (t:Trip {
      duration: duration,
      validFrom: datetime({epochMillis: startTime}),
      validTo: datetime({epochMillis: stopTime})
    })
-   MATCH (s:Station {stationId: startId})
-   MATCH (e:Station {stationId: endId})
-   WHERE startTime IS NOT NULL AND stopTime IS NOT NULL
+   RETURN s, e, t
+   "
+,
+  "
    MERGE (t)-[:HAS_START]->(s)
    MERGE (t)-[:HAS_END]->(e)",
   {batchSize: 1000, parallel: false}
@@ -57,11 +70,20 @@ RETURN batches, total;
 
 LOAD CSV WITH HEADERS FROM'file:///201702-citibike-tripdata.csv_1.csv' AS row FIELDTERMINATOR ','
 WITH row
-MERGE(s1:Station{stationId:toInteger(row.`Start Station ID`),name:row.`Start Station Name`,lat:toFloat(row.`Start Station Latitude`),long:toFloat(row.`Start Station Longitude`)})
+MERGE(s1:Station{stationId:toInteger(row.`Start Station ID`)})
+ON CREATE
+ SET s1.name = row.`Start Station Name`,
+     s1.lat = toFloat(row.`Start Station Latitude`),
+     s1.long = toFloat(row.`Start Station Longitude`)
 RETURN row;
+
 LOAD CSV WITH HEADERS FROM'file:///201702-citibike-tripdata.csv_1.csv' AS row FIELDTERMINATOR ','
 WITH row
-MERGE(s1:Station{stationId:toInteger(row.`End Station ID`),name:row.`End Station Name`,lat:toFloat(row.`End Station Latitude`),long:toFloat(row.`End Station Longitude`)})
+MERGE(s1:Station{stationId:toInteger(row.`End Station ID`)})
+ON CREATE SET
+  s1.name = row.`End Station Name`,
+  s1.lat = toFloat(row.`End Station Latitude`),
+  s1.long = toFloat(row.`End Station Longitude`)
 RETURN row;
 //Laden der Trip Nodes
 CALL apoc.periodic.iterate(
